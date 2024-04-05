@@ -4,12 +4,12 @@ inputs:
     target-repo:
       required: false
       type: string
-      default: nrfconnect/sdk-nrf-testing
+      default: nrfconnect/sdk-nrf
       description: 'target repository for manifest PR'
     forked-repo:
       required: false
       type: string
-      default: nordicbuilder/sdk-nrf-testing
+      default: nordicbuilder/sdk-nrf
       description: 'forked repository where changes are pushed'
     skip-string:
       required: false
@@ -63,12 +63,12 @@ runs:
         repository: ${{ inputs.target-repo }}
         token: ${{ inputs.token }}
 
-# west preparation for manifest PR creation
+# west.yml preparation for manifest PR creation
     - name: Change west.yml PR revision
       if: ${{ github.event.action == 'opened' }}
       shell: bash
       run: |
-        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "sdk-nrfxlib") |  key' west.yml)
+        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "{{ github.event.repository.name }}") |  key' west.yml)
         yq ".manifest.projects[$PROJECT_KEY].revision = \"pull/${{ github.event.pull_request.number }}/head\"" west.yml > tmp.yml
         diff -B west.yml tmp.yml | patch west.yml - || true
 
