@@ -89,9 +89,7 @@ runs:
         diff -B west.yml tmp.yml | patch west.yml - || true
 
     - name: Change west.yml nrf-802154 revision
-      if: |
-        startsWith(github.event.pull_request.title, 'nrf_802154: Update revision of nrf_802154') && 
-        github.event.action == 'opened'
+      if: ${{ startsWith(github.event.pull_request.title, 'nrf_802154: Update revision of nrf_802154') && github.event.action == 'opened' }}
       env:
         COMMITS_URL: ${{ github.event.pull_request.commits_url }}
       shell: bash
