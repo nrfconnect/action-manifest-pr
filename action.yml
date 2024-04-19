@@ -15,6 +15,11 @@ inputs:
       required: false
       type: string
       default: manifest-pr-skip
+    manifest-pr-title-details:
+      required: false
+      type: string
+      default: 'Update revision'
+      description: 'Input to the manifest PR title: "manifest: <repo>: <manifest-pr-title-details>"'
     token:
       required: true
       type: string
@@ -118,7 +123,7 @@ runs:
         git commit -m "manifest: Update ${{ github.event.repository.name }} revision (auto-manifest PR)" -m "Automatically created by Github Action" --signoff
         git remote add fork https://nordicbuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}
         git push -u fork manifest_pr:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
-        gh pr create --base main --repo ${{ inputs.target-repo }} --title "manifest: Update revision of ${{ github.event.repository.name }}" \
+        gh pr create --base main --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: ${{ inputs.manifest-pr-title-details }}" \
           --body "Automatically created by Github Action from PR: github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
 
 # Checkout phase for retrigger CI or update west.yml from PR to sha
