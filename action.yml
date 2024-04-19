@@ -118,7 +118,7 @@ runs:
         git commit -m "manifest: Update ${{ github.event.repository.name }} revision (auto-manifest PR)" -m "Automatically created by Github Action" --signoff
         git remote add fork https://nordicbuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}
         git push -u fork manifest_pr:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
-        gh pr create --base main --repo ${{ inputs.target-repo }} --title "manifest: Update revision of ${{ github.event.repository.name }}" \
+        gh pr create --base main --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: ${{ github.event.pull_request.title}}" \
           --body "Automatically created by Github Action from PR: github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
 
 # Checkout phase for retrigger CI or update west.yml from PR to sha
