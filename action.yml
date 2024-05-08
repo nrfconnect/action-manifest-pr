@@ -153,4 +153,12 @@ runs:
           diff -B west.yml tmp.yml | patch west.yml - || true
           git add west.yml
           git commit --amend --no-edit
+          git remote add upstream https://github.com/${{ inputs.target-repo }}
+          git fetch upstream
+          set +e
+          git merge-tree --write-tree --name-only upstream/main auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+          has_conflict="$?"
+          echo "has_conflict is" $has_conflict
+          set -e
+          if (( $has_conflict == 1)) ; then git rebase upstream/main -X theirs ; fi
           git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
