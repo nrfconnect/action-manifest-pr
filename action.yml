@@ -46,12 +46,16 @@ runs:
         labels: 'external'
 
     - name: Stop in case external label is set
-      if: ${{ contains(github.event.pull_request.labels.*.name, 'external') }}
       shell: bash
       run: |
-        echo "External contribution detected. Automatic creation of manifest PR skipped."
-        echo "To test your changes, please create PR in the sdk-nrf repository."
-        exit 1
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json labels --jq '.labels[].name')
+          if [[ "$LABELS" == *"external"* ]]; then
+            echo "External contribution detected. Automatic creation of manifest PR skipped."
+            echo "To test your changes, please create PR in the sdk-nrf repository."
+            exit 1
+          fi
+      env:
+        GH_TOKEN: ${{ inputs.token }}
 
 # Common setup for all the phases
     - name: Setup git
