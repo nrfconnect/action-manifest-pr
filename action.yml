@@ -126,7 +126,8 @@ runs:
         git remote add fork https://nordicbuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}
         git push -u fork manifest_pr:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
         gh pr create --base main --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: ${{ inputs.manifest-pr-title-details }}" \
-          --body "Automatically created by action-manifest-pr GH action from PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          --body "Automatically created by action-manifest-pr GH action from PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}" \
+          --reviewer ${{ github.event.pull_request.user.login }}
 
 # Checkout phase for retrigger CI or update west.yml from PR to sha
     - name: Checkout sources from fork
