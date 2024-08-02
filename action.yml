@@ -15,6 +15,10 @@ inputs:
       required: false
       type: string
       default: manifest-pr-skip
+    create-pr-comment-string:
+      required: false
+      type: string
+      default: 'action-manifest-pr please create manifest-PR'
     rebase-comment-string:
       required: false
       type: string
@@ -119,7 +123,9 @@ runs:
 
 # create actual manifest PR
     - name: Commit changed west.yml and create PR
-      if: ${{ github.event.action == 'opened' }}
+      if: ${{ github.event.action == 'opened' }} ||
+          ( ${{ github.event.action == 'created' }} && ${{ github.event.issue.pull_request }} &&
+             contains(github.event.comment, inputs.create-pr-comment-string)) )
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
