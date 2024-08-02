@@ -15,6 +15,14 @@ inputs:
       required: false
       type: string
       default: manifest-pr-skip
+    create-pr-comment-string:
+      required: false
+      type: string
+      default: 'action-manifest-pr please create manifest-PR'
+    rebase-comment-string:
+      required: false
+      type: string
+      default: 'action-manifest-pr please rebase'
     manifest-pr-title-details:
       required: false
       type: string
@@ -115,7 +123,9 @@ runs:
 
 # create actual manifest PR
     - name: Commit changed west.yml and create PR
-      if: ${{ github.event.action == 'opened' }}
+      if: ${{ github.event.action == 'opened' }} ||
+          ( ${{ github.event.action == 'created' }} && ${{ github.event.issue.pull_request }} &&
+             contains(github.event.comment, inputs.create-pr-comment-string)) )
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
@@ -165,4 +175,15 @@ runs:
           echo "has_conflict is" $has_conflict
           set -e
           if (( $has_conflict == 1)) ; then git rebase upstream/main -X theirs ; fi
+          git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
+
+    - name: Rebase manifest-PR on comment
+      if: ${{ github.event.action == 'created' }} && ${{ github.event.issue.pull_request }} &&
+          contains(github.event.comment, inputs.rebase-comment-string)) )
+      shell: bash
+      run: |
+          git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+          git remote add upstream https://github.com/${{ inputs.target-repo }}
+          git fetch upstream
+          git rebase upstream/main -X theirs
           git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
