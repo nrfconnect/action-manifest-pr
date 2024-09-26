@@ -166,3 +166,12 @@ runs:
           set -e
           if (( $has_conflict == 1)) ; then git rebase upstream/main -X theirs ; fi
           git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
+
+    - name: Close manifest-PR upon closing PR
+      if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == false }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        gh pr close -R ${{ inputs.target-repo }} NordicBuilder:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} \
+          --comment "Automatically closed by action-manifest-pr GH action" || true
