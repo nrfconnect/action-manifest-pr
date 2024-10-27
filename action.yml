@@ -6,6 +6,11 @@ inputs:
       type: string
       default: nrfconnect/sdk-nrf
       description: 'target repository for manifest PR'
+    base-branch:
+      required: false
+      type: string
+      default: main
+      description: 'base/target branch for manifest PR'
     forked-repo:
       required: false
       type: string
@@ -71,6 +76,8 @@ runs:
       with:
         repository: ${{ inputs.target-repo }}
         token: ${{ inputs.token }}
+        ref: ${{ inputs.base-branch }}
+
 
 # west.yml preparation for manifest PR creation
     - name: Change west.yml PR revision
@@ -126,7 +133,7 @@ runs:
         git commit -m "manifest: Update ${{ github.event.repository.name }} revision (auto-manifest PR)" -m "Automatically created by Github Action" --signoff
         git remote add fork https://nordicbuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}
         git push -u fork manifest_pr:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
-        gh pr create --base main --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: $MANIFEST_PR_TITLE" \
+        gh pr create --base ${{ inputs.base-branch }} --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: $MANIFEST_PR_TITLE" \
           --body "Automatically created by action-manifest-pr GH action from PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
 
 # Checkout phase for retrigger CI or update west.yml from PR to sha
@@ -161,11 +168,11 @@ runs:
           git remote add upstream https://github.com/${{ inputs.target-repo }}
           git fetch upstream
           set +e
-          git merge-tree --write-tree --name-only upstream/main auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+          git merge-tree --write-tree --name-only upstream/${{ inputs.base-branch }} auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
           has_conflict="$?"
           echo "has_conflict is" $has_conflict
           set -e
-          if (( $has_conflict == 1)) ; then git rebase upstream/main -X theirs ; fi
+          if (( $has_conflict == 1)) ; then git rebase upstream/${{ inputs.base-branch }} -X theirs ; fi
           git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
 
     - name: Close manifest-PR upon closing PR
