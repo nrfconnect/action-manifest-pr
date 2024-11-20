@@ -151,6 +151,9 @@ runs:
       shell: bash
       run: |
         git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+        git remote add upstream https://github.com/${{ inputs.target-repo }}
+        git fetch upstream
+        git rebase upstream/${{ inputs.base-branch }} -X theirs
         git commit --amend --no-edit
         git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
 
