@@ -14,7 +14,7 @@ inputs:
     forked-repo:
       required: false
       type: string
-      default: nordicbuilder/sdk-nrf
+      default: NordicBuilder/sdk-nrf
       description: 'forked repository where changes are pushed'
     skip-string:
       required: false
@@ -131,7 +131,7 @@ runs:
         git checkout -b manifest_pr
         git add west.yml
         git commit -m "manifest: Update ${{ github.event.repository.name }} revision (auto-manifest PR)" -m "Automatically created by Github Action" --signoff
-        git remote add fork https://nordicbuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}
+        git remote add fork https://NordicBuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}
         git push -u fork manifest_pr:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
         gh pr create --base ${{ inputs.base-branch }} --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: $MANIFEST_PR_TITLE" \
           --body "Automatically created by action-manifest-pr GH action from PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
