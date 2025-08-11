@@ -1,33 +1,33 @@
 name: 'Manifest PR handler'
 description: 'Handles manifest PR related tasks'
 inputs:
-    target-repo:
-      required: false
-      type: string
-      default: nrfconnect/sdk-nrf
-      description: 'target repository for manifest PR'
-    base-branch:
-      required: false
-      type: string
-      default: main
-      description: 'base/target branch for manifest PR'
-    forked-repo:
-      required: false
-      type: string
-      default: nordicbuilder/sdk-nrf
-      description: 'forked repository where changes are pushed'
-    skip-string:
-      required: false
-      type: string
-      default: manifest-pr-skip
-    manifest-pr-title-details:
-      required: false
-      type: string
-      default: 'Update revision'
-      description: 'Input to the manifest PR title: "manifest: <repo>: <manifest-pr-title-details>"'
-    token:
-      required: true
-      type: string
+  target-repo:
+    required: false
+    type: string
+    default: nrfconnect/sdk-nrf
+    description: 'target repository for manifest PR'
+  base-branch:
+    required: false
+    type: string
+    default: main
+    description: 'base/target branch for manifest PR'
+  forked-repo:
+    required: false
+    type: string
+    default: nordicbuilder/sdk-nrf
+    description: 'forked repository where changes are pushed'
+  skip-string:
+    required: false
+    type: string
+    default: manifest-pr-skip
+  manifest-pr-title-details:
+    required: false
+    type: string
+    default: 'Update revision'
+    description: 'Input to the manifest PR title: "manifest: <repo>: <manifest-pr-title-details>"'
+  token:
+    required: true
+    type: string
 
 runs:
   using: "composite"
@@ -41,7 +41,7 @@ runs:
         echo "Skip string detected. Will skip following steps."
         echo "SKIP_STRING=true" >> "$GITHUB_OUTPUT"
 
-# fail in case of external user
+    # fail in case of external user
     - name: Add external label
       uses: carlescufi/action-contribs@main
       with:
@@ -58,10 +58,11 @@ runs:
             echo "To test your changes, please create PR in the sdk-nrf repository."
             exit 1
           fi
+        fi
       env:
         GH_TOKEN: ${{ inputs.token }}
 
-# Common setup for all the phases
+    # Common setup for all the phases
     - name: Setup git
       if: ${{ steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
@@ -69,7 +70,7 @@ runs:
         git config --global user.email "pylon@nordicsemi.no"
         git config --global user.name "Nordic Builder"
 
-# Checkout phase for manifest PR creation
+    # Checkout phase for manifest PR creation
     - name: Checkout sources
       if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
       uses: actions/checkout@v4
@@ -79,7 +80,7 @@ runs:
         ref: ${{ inputs.base-branch }}
 
 
-# west.yml preparation for manifest PR creation
+    # west.yml preparation for manifest PR creation
     - name: Change west.yml PR revision
       if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
@@ -120,7 +121,7 @@ runs:
         yq ".manifest.projects[$PROJECT_KEY].revision = \"$NRF_802154_REV\"" west.yml > tmp.yml
         diff -B west.yml tmp.yml | patch west.yml - || true
 
-# create actual manifest PR
+    # create actual manifest PR
     - name: Commit changed west.yml and create PR
       if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
@@ -138,7 +139,7 @@ runs:
           --base ${{ inputs.base-branch }} --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: $MANIFEST_PR_TITLE" \
           --body "Automatically created by action-manifest-pr GH action from PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
 
-# Checkout phase for retrigger CI or update west.yml from PR to sha
+    # Checkout phase for retrigger CI or update west.yml from PR to sha
     - name: Checkout sources from fork
       if: ${{ (github.event.action == 'synchronize' || github.event.pull_request.merged == true) && steps.check.outputs.SKIP_STRING != 'true' }}
       uses: actions/checkout@v4
@@ -147,7 +148,7 @@ runs:
         token: ${{ inputs.token }}
         fetch-depth: 0
 
-# This is used for retriggering CI in case sub-PR got updates (assumes manifest PR exists)
+    # This is used for retriggering CI in case sub-PR got updates (assumes manifest PR exists)
     - name: Retrigger CI by changing commit sha and pushing
       if: ${{ github.event.action == 'synchronize' && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
@@ -159,26 +160,26 @@ runs:
         git commit --amend --no-edit
         git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
 
-# This is used for changing PR pointer to sha in west.yml (assumes manifest PR exists)
+    # This is used for changing PR pointer to sha in west.yml (assumes manifest PR exists)
     - name: Change commit sha and push it
       if: ${{ github.event.pull_request.merged == true && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
       run: |
-          git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
-          PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "${{ github.event.repository.name }}") |  key' west.yml)
-          yq ".manifest.projects[$PROJECT_KEY].revision = \"$GITHUB_SHA\"" west.yml > tmp.yml
-          diff -B west.yml tmp.yml | patch west.yml - || true
-          git add west.yml
-          git commit --amend --no-edit
-          git remote add upstream https://github.com/${{ inputs.target-repo }}
-          git fetch upstream
-          set +e
-          git merge-tree --write-tree --name-only upstream/${{ inputs.base-branch }} auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
-          has_conflict="$?"
-          echo "has_conflict is" $has_conflict
-          set -e
-          if (( $has_conflict == 1)) ; then git rebase upstream/${{ inputs.base-branch }} -X theirs ; fi
-          git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
+        git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "${{ github.event.repository.name }}") |  key' west.yml)
+        yq ".manifest.projects[$PROJECT_KEY].revision = \"$GITHUB_SHA\"" west.yml > tmp.yml
+        diff -B west.yml tmp.yml | patch west.yml - || true
+        git add west.yml
+        git commit --amend --no-edit
+        git remote add upstream https://github.com/${{ inputs.target-repo }}
+        git fetch upstream
+        set +e
+        git merge-tree --write-tree --name-only upstream/${{ inputs.base-branch }} auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+        has_conflict="$?"
+        echo "has_conflict is" $has_conflict
+        set -e
+        if (( $has_conflict == 1)) ; then git rebase upstream/${{ inputs.base-branch }} -X theirs ; fi
+        git push origin auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} -f
 
     - name: Close manifest-PR upon closing PR
       if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == false && steps.check.outputs.SKIP_STRING != 'true'}}
