@@ -52,8 +52,16 @@ runs:
     - name: Stop in case external label is set
       shell: bash
       run: |
-          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json labels --jq '.labels[].name')
-          if [[ "$LABELS" == *"external"* ]]; then
+        LABELS=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json labels --jq '.labels[].name')
+
+        if [[ "$LABELS" == *"external"* ]]; then
+          AUTHOR_INFO=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json author --jq '.author')
+          AUTHOR_LOGIN=$(echo "$AUTHOR_INFO" | jq -r '.login')
+          AUTHOR_IS_BOT=$(echo "$AUTHOR_INFO" | jq -r '.is_bot')
+
+          if [[ "$AUTHOR_LOGIN" == "app/github-actions" && "$AUTHOR_IS_BOT" == "true" ]]; then
+            echo "Author is GitHub Actions bot, skipping external contribution check."
+          else
             echo "External contribution detected. Automatic creation of manifest PR failed."
             echo "To test your changes, please create PR in the sdk-nrf repository."
             exit 1
