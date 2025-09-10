@@ -197,3 +197,12 @@ runs:
       run: |
         gh pr close -R ${{ inputs.target-repo }} NordicBuilder:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} \
           --comment "Automatically closed by action-manifest-pr GH action" || true
+
+    - name: Re-open  manifest-PR upon reopening PR
+      if: ${{ github.event.action == 'reopened' && steps.check.outputs.SKIP_STRING != 'true'}}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        gh pr reopen -R ${{ inputs.target-repo }} NordicBuilder:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }} \
+          --comment "Automatically reopened by action-manifest-pr GH action" || true
