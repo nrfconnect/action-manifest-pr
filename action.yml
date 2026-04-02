@@ -28,6 +28,11 @@ inputs:
   token:
     required: true
     type: string
+  draft-pr:
+    required: false
+    type: boolean
+    default: false
+    description: 'If set, the manifest PR will be created as a draft PR'
 
 runs:
   using: "composite"
@@ -149,7 +154,7 @@ runs:
         USERNAME=$(echo "${{ inputs.forked-repo }}" | cut -d'/' -f1)
         gh pr create --head "$USERNAME:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}" \
           --base ${{ inputs.base-branch }} --repo ${{ inputs.target-repo }} --title "manifest: ${{ github.event.repository.name }}: $MANIFEST_PR_TITLE" \
-          --body "$BODY"
+          --body "$BODY" ${{ inputs.draft-pr == 'true' && '--draft' || '' }}
 
     # Checkout phase for retrigger CI or update west.yml from PR to sha
     - name: Checkout sources from fork
