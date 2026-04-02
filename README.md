@@ -25,3 +25,6 @@ jobs:
 There is default skip string define in: https://github.com/nrfconnect/action-manifest-pr/blob/main/action.yml#L17
 
 Action is self-cancelling itself in case of this string is found from PR title or from PR body.
+
+## draft PR:
+By default, the manifest PR is created as a ready-for-review PR. To create it as a draft PR, set the `draft-pr` input to `true`.
