@@ -28,3 +28,14 @@ Action is self-cancelling itself in case of this string is found from PR title o
 
 ## draft PR:
 By default, the manifest PR is created as a ready-for-review PR. To create it as a draft PR, set the `draft-pr` input to `true`.
+
+## nrfxlib manifest PR side-effect updates
+
+When this action runs from **sdk-nrfxlib** (or another triggering repo), the manifest PR normally updates only that repo's `west.yml` entry. For certain nrfxlib PR titles, the action also updates additional manifest projects—**but only if those projects are present in the target branch's `west.yml`**.
+
+| Triggering PR title prefix | `west.yml` project updated | Notes |
+|---|---|---|
+| `Update MPSL and SoftDevice Controller` | `dragoon` | Revision is taken from the third word of the triggering PR's latest commit message. Skipped when `dragoon` is not in `west.yml` (e.g. some starlight branches). |
+| `Update revision of nrf_802154` | `nrf-802154` (802.15.4) | Same commit-message parsing as dragoon. Skipped when `nrf-802154` is not in `west.yml`. |
+
+In all cases the action still updates the triggering repository's own `repo-path` entry to `pull/<nr>/head` as usual.

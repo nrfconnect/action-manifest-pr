@@ -102,8 +102,19 @@ runs:
         yq ".manifest.projects[$PROJECT_KEY].revision = \"pull/${{ github.event.pull_request.number }}/head\"" west.yml > tmp.yml
         diff -B west.yml tmp.yml | patch west.yml - || true
 
+    - name: Check dragoon project in west.yml
+      id: dragoon_check
+      if: ${{ startsWith(github.event.pull_request.title, 'Update MPSL and SoftDevice Controller') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
+      shell: bash
+      run: |
+        if yq '.manifest.projects[] | select(.name == "dragoon")' west.yml | grep -q .; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Change west.yml Dragoon revision
-      if: ${{ startsWith(github.event.pull_request.title, 'Update MPSL and SoftDevice Controller') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true'}}
+      if: ${{ startsWith(github.event.pull_request.title, 'Update MPSL and SoftDevice Controller') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' && steps.dragoon_check.outputs.exists == 'true' }}
       env:
         COMMITS_URL: ${{ github.event.pull_request.commits_url }}
       shell: bash
@@ -118,8 +129,19 @@ runs:
         yq ".manifest.projects[$PROJECT_KEY].revision = \"$DRAGOON_REV\"" west.yml > tmp.yml
         diff -B west.yml tmp.yml | patch west.yml - || true
 
-    - name: Change west.yml nrf-802154 revision
+    - name: Check nrf-802154 project in west.yml
+      id: nrf802154_check
       if: ${{ startsWith(github.event.pull_request.title, 'Update revision of nrf_802154') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
+      shell: bash
+      run: |
+        if yq '.manifest.projects[] | select(.name == "nrf-802154")' west.yml | grep -q .; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Change west.yml nrf-802154 revision
+      if: ${{ startsWith(github.event.pull_request.title, 'Update revision of nrf_802154') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' && steps.nrf802154_check.outputs.exists == 'true' }}
       env:
         COMMITS_URL: ${{ github.event.pull_request.commits_url }}
       shell: bash
