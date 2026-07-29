@@ -7,7 +7,6 @@ import pytest
 from ruamel.yaml import YAML
 
 import west
-from west import WestProjectNotFoundError
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 
@@ -61,13 +60,29 @@ def test_parse_revision_from_commit_message() -> None:
     )
 
 
+def test_has_project_returns_true_when_dragoon_exists(west_file: Path) -> None:
+    copy_fixture(west_file, 'west-full.yml')
+    assert west.has_project(west_file, 'dragoon') is True
+
+
+def test_has_project_returns_false_when_dragoon_absent(west_file: Path) -> None:
+    copy_fixture(west_file, 'west-no-dragoon.yml')
+    assert west.has_project(west_file, 'dragoon') is False
+
+
 def test_set_project_revision_by_name_updates_dragoon_when_present(west_file: Path) -> None:
     copy_fixture(west_file, 'west-full.yml')
-    west.set_project_revision_by_name(west_file, 'dragoon', 'deadbeef')
+    assert west.set_project_revision_by_name(west_file, 'dragoon', 'deadbeef') is True
     assert read_revision(west_file, 1) == 'deadbeef'
 
 
-def test_set_project_revision_by_name_raises_when_dragoon_absent(west_file: Path) -> None:
+def test_set_project_revision_by_name_skips_when_dragoon_absent(west_file: Path) -> None:
     copy_fixture(west_file, 'west-no-dragoon.yml')
-    with pytest.raises(WestProjectNotFoundError):
-        west.set_project_revision_by_name(west_file, 'dragoon', 'deadbeef')
+    assert west.set_project_revision_by_name(west_file, 'dragoon', 'deadbeef') is False
+    assert read_revision(west_file, 0) == 'main'
+
+
+def test_set_project_revision_by_name_skips_when_nrf802154_absent(west_file: Path) -> None:
+    copy_fixture(west_file, 'west-no-nrf802154.yml')
+    assert west.set_project_revision_by_name(west_file, 'nrf-802154', 'deadbeef') is False
+    assert read_revision(west_file, 1) == 'abc123'

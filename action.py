@@ -200,16 +200,22 @@ def update_west_for_opened(
     west_mod.set_project_revision(west_file, project_key, f'pull/{pr_number}/head')
 
     if title.startswith(DRAGOON_TITLE_PREFIX):
-        message = fetch_last_commit_message(token, pull_request.get('commits_url'))
-        dragoon_rev = west_mod.parse_revision_from_commit_message(message)
-        log(f'DRAGOON_REV is {dragoon_rev}')
-        west_mod.set_project_revision_by_name(west_file, 'dragoon', dragoon_rev)
+        if west_mod.has_project(west_file, 'dragoon'):
+            message = fetch_last_commit_message(token, pull_request.get('commits_url'))
+            dragoon_rev = west_mod.parse_revision_from_commit_message(message)
+            log(f'DRAGOON_REV is {dragoon_rev}')
+            west_mod.set_project_revision_by_name(west_file, 'dragoon', dragoon_rev)
+        else:
+            log('dragoon not found in west.yml, skipping revision update')
 
     if title.startswith(NRF802154_TITLE_PREFIX):
-        message = fetch_last_commit_message(token, pull_request.get('commits_url'))
-        nrf_rev = west_mod.parse_revision_from_commit_message(message)
-        log(f'NRF_802154_REV is {nrf_rev}')
-        west_mod.set_project_revision_by_name(west_file, 'nrf-802154', nrf_rev)
+        if west_mod.has_project(west_file, 'nrf-802154'):
+            message = fetch_last_commit_message(token, pull_request.get('commits_url'))
+            nrf_rev = west_mod.parse_revision_from_commit_message(message)
+            log(f'NRF_802154_REV is {nrf_rev}')
+            west_mod.set_project_revision_by_name(west_file, 'nrf-802154', nrf_rev)
+        else:
+            log('nrf-802154 not found in west.yml, skipping revision update')
 
 
 def handle_opened(args: argparse.Namespace, event: dict, token: str) -> None:

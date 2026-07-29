@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -54,11 +55,20 @@ def set_project_revision(west_file: Path, project_key: int, revision: str) -> No
     _save(west_file, data)
 
 
-def set_project_revision_by_name(west_file: Path, name: str, revision: str) -> None:
+def has_project(west_file: Path, name: str) -> bool:
+    return project_key_by_name(west_file, name) is not None
+
+
+def set_project_revision_by_name(west_file: Path, name: str, revision: str) -> bool:
     project_key = project_key_by_name(west_file, name)
     if project_key is None:
-        raise WestProjectNotFoundError(f'project {name!r} not found in {west_file}')
+        print(
+            f"Project '{name}' not found in {west_file}, skipping revision update.",
+            file=sys.stderr,
+        )
+        return False
     set_project_revision(west_file, project_key, revision)
+    return True
 
 
 def parse_revision_from_commit_message(message: str) -> str:
