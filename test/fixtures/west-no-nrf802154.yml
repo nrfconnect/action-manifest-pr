@@ -1,0 +1,7 @@
+manifest:
+  projects:
+    - name: sdk-nrfxlib-starlight
+      repo-path: sdk-nrfxlib-starlight
+      revision: main
+    - name: dragoon
+      revision: abc123
