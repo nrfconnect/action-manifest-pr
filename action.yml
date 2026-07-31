@@ -191,7 +191,19 @@ runs:
     - name: Retrigger CI by changing commit sha and pushing
       if: ${{ github.event.action == 'synchronize' && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
       run: |
+        # If the source PR is merged while this run is in progress, this step's later force-push would
+        # clobber the pinned merge commit back to pull/<N>/head. Bail out if the source PR is no longer
+        # open so the SHA pin survives.
+        # 
+        # Note: Draft PRs return the state OPEN too. They are intentionally allowed to retrigger CI here.
+        PR_STATE=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json state --jq '.state')
+        if [[ "$PR_STATE" != "OPEN" ]]; then
+          echo "Source PR is ${PR_STATE} (not open); skipping CI-retrigger force-push to avoid reverting the pinned merge commit."
+          exit 0
+        fi
         git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
         git remote add upstream https://github.com/${{ inputs.target-repo }}
         git fetch upstream
