@@ -29,6 +29,9 @@ Action is self-cancelling itself in case of this string is found from PR title o
 ## draft PR:
 By default, the manifest PR is created as a ready-for-review PR. To create it as a draft PR, set the `draft-pr` input to `true`.
 
+## manifest file location:
+By default the action modifies `west.yml` in the root of the target repository. Use the `manifest-file-path` input to point to a different manifest file, e.g. `manifest-file-path: submanifests/custom.yml`.
+
 ## nrfxlib manifest PR side-effect updates
 
 When this action runs from **sdk-nrfxlib** (or another triggering repo), the manifest PR normally updates only that repo's `west.yml` entry. For certain nrfxlib PR titles, the action also updates additional manifest projects—**but only if those projects are present in the target branch's `west.yml`**.
