@@ -32,6 +32,23 @@ By default, the manifest PR is created as a ready-for-review PR. To create it as
 ## manifest file location:
 By default the action modifies `west.yml` in the root of the target repository. Use the `manifest-file-path` input to point to a different manifest file, e.g. `manifest-file-path: submanifests/custom.yml`.
 
+### multiple manifest files
+If the target repository contains more than one manifest file, pass a comma separated list. Every listed
+file is updated and all changes end up in a **single commit and a single pull request**:
+
+```yaml
+      - name: Create manifest PR
+        uses: nrfconnect/action-manifest-pr@main
+        with:
+          token: ${{ secrets.NCS_GITHUB_TOKEN }}
+          manifest-file-path: west.yml,submanifests/custom.yml
+```
+
+Do not put spaces around the commas - the value is split on `,` only, so `west.yml, submanifests/custom.yml`
+would be interpreted as a file named ` submanifests/custom.yml`. Each file must contain a project matching
+the triggering repository's `repo-path`, otherwise the action fails. The side-effect updates below are
+applied per file, and skipped for files that do not contain the project.
+
 ## nrfxlib manifest PR side-effect updates
 
 When this action runs from **sdk-nrfxlib** (or another triggering repo), the manifest PR normally updates only that repo's `west.yml` entry. For certain nrfxlib PR titles, the action also updates additional manifest projects—**but only if those projects are present in the target branch's `west.yml`**.

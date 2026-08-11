@@ -37,7 +37,8 @@ inputs:
     required: false
     type: string
     default: west.yml
-    description: 'Path to the manifest file in the target repository'
+    description: 'Comma separated list of paths to the manifest files in the target repository.
+      All listed files are updated within a single manifest PR, e.g. "west.yml,west-internal.yml"'
 
 runs:
   using: "composite"
@@ -88,6 +89,24 @@ runs:
         git config --global user.email "pylon@nordicsemi.no"
         git config --global user.name "Nordic Builder"
 
+    # Parse the comma separated manifest-file-path input once, so that all the
+    # steps below can simply iterate over the resulting newline separated list.
+    - name: Parse manifest file paths
+      id: manifest_files
+      if: ${{ steps.check.outputs.SKIP_STRING != 'true' }}
+      shell: bash
+      env:
+        MANIFEST_FILE_PATHS: ${{ inputs.manifest-file-path }}
+      run: |
+        MANIFEST_FILES=$(tr ',' '\n' <<< "$MANIFEST_FILE_PATHS")
+        echo "Manifest files to update:"
+        echo "$MANIFEST_FILES"
+        {
+          echo "files<<MANIFEST_FILES_EOF"
+          echo "$MANIFEST_FILES"
+          echo "MANIFEST_FILES_EOF"
+        } >> "$GITHUB_OUTPUT"
+
     # Checkout phase for manifest PR creation
     - name: Checkout sources
       if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
@@ -115,7 +134,7 @@ runs:
       shell: bash
       env:
         COMMITS_URL: ${{ github.event.pull_request.commits_url }}
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
+        MANIFEST_FILES: ${{ steps.manifest_files.outputs.files }}
         PR_TITLE: ${{ github.event.pull_request.title }}
         REPO_NAME: ${{ github.event.repository.name }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -130,12 +149,16 @@ runs:
             fi
             ;;
         esac
-        python "$GITHUB_ACTION_PATH/scripts/update_manifest.py" \
-          --manifest-file "$MANIFEST_FILE" \
-          --repo-name "$REPO_NAME" \
-          --pr-number "$PR_NUMBER" \
-          --pr-title "$PR_TITLE" \
-          --commit-message "$LAST_MSG"
+        while IFS= read -r MANIFEST_FILE; do
+          echo "::group::Updating $MANIFEST_FILE"
+          python "$GITHUB_ACTION_PATH/scripts/update_manifest.py" \
+            --manifest-file "$MANIFEST_FILE" \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --pr-title "$PR_TITLE" \
+            --commit-message "$LAST_MSG" < /dev/null
+          echo "::endgroup::"
+        done <<< "$MANIFEST_FILES"
 
     # create actual manifest PR
     - name: Commit changed manifest file and create PR
@@ -144,14 +167,16 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         MANIFEST_PR_TITLE: ${{ inputs.manifest-pr-title-details }}
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
+        MANIFEST_FILES: ${{ steps.manifest_files.outputs.files }}
         BODY: |
            Automatically created by action-manifest-pr GH action from PR:
            https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
 
       run: |
         git checkout -b manifest_pr
-        git add "$MANIFEST_FILE"
+        while IFS= read -r MANIFEST_FILE; do
+          git add "$MANIFEST_FILE"
+        done <<< "$MANIFEST_FILES"
         git commit -m "manifest: Update ${{ github.event.repository.name }} revision (auto-manifest PR)" -m "$BODY" --signoff
         git remote add fork "https://nordicbuilder:${{ inputs.token }}@github.com/${{ inputs.forked-repo }}"
         git push -u fork manifest_pr:auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
@@ -186,13 +211,15 @@ runs:
       if: ${{ github.event.pull_request.merged == true && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
       env:
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
+        MANIFEST_FILES: ${{ steps.manifest_files.outputs.files }}
       run: |
         git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
-        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "${{ github.event.repository.name }}") |  key' "$MANIFEST_FILE")
-        yq ".manifest.projects[$PROJECT_KEY].revision = \"${{ github.event.pull_request.merge_commit_sha }}\"" "$MANIFEST_FILE" > tmp.yml
-        diff -B "$MANIFEST_FILE" tmp.yml | patch "$MANIFEST_FILE" - || true
-        git add "$MANIFEST_FILE"
+        while IFS= read -r MANIFEST_FILE; do
+          PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "${{ github.event.repository.name }}") |  key' "$MANIFEST_FILE")
+          yq ".manifest.projects[$PROJECT_KEY].revision = \"${{ github.event.pull_request.merge_commit_sha }}\"" "$MANIFEST_FILE" > tmp.yml
+          diff -B "$MANIFEST_FILE" tmp.yml | patch "$MANIFEST_FILE" - || true
+          git add "$MANIFEST_FILE"
+        done <<< "$MANIFEST_FILES"
         git commit --amend --no-edit
         git remote add upstream https://github.com/${{ inputs.target-repo }}
         git fetch upstream
