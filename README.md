@@ -42,3 +42,31 @@ When this action runs from **sdk-nrfxlib** (or another triggering repo), the man
 | `Update revision of nrf_802154` | `nrf-802154` (802.15.4) | Same commit-message parsing as dragoon. Skipped when `nrf-802154` is not in `west.yml`. |
 
 In all cases the action still updates the triggering repository's own `repo-path` entry to `pull/<nr>/head` as usual.
+
+## development
+
+The manifest editing logic lives in [`scripts/update_manifest.py`](scripts/update_manifest.py) and is
+invoked by the action. It edits the manifest in place with `ruamel.yaml` round-trip mode, so comments,
+quoting and ordering are preserved and the resulting diff only touches the changed `revision` lines.
+
+The script can also be run standalone:
+
+```bash
+python scripts/update_manifest.py \
+  --manifest-file west.yml \
+  --repo-name sdk-nrfxlib \
+  --pr-number 1234 \
+  --pr-title "Update revision of nrf_802154" \
+  --commit-message "nrf_802154: revision <sha>"
+```
+
+### running the tests
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
+Tests run automatically on every pull request via the [Tests workflow](.github/workflows/test.yml) on Python 3.12.
+
+

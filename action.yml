@@ -99,75 +99,43 @@ runs:
 
 
     # Manifest file preparation for manifest PR creation
-    - name: Change manifest file PR revision
+    - name: Setup Python
+      if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install manifest script dependencies
+      if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
+      shell: bash
+      run: python -m pip install --quiet --disable-pip-version-check "ruamel.yaml>=0.18.5"
+
+    - name: Change manifest file revisions
       if: ${{ github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
       shell: bash
       env:
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
-      run: |
-        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "${{ github.event.repository.name }}") |  key' "$MANIFEST_FILE")
-        yq ".manifest.projects[$PROJECT_KEY].revision = \"pull/${{ github.event.pull_request.number }}/head\"" "$MANIFEST_FILE" > tmp.yml
-        diff -B "$MANIFEST_FILE" tmp.yml | patch "$MANIFEST_FILE" - || true
-
-    - name: Check dragoon project in manifest file
-      id: dragoon_check
-      if: ${{ startsWith(github.event.pull_request.title, 'Update MPSL and SoftDevice Controller') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
-      shell: bash
-      env:
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
-      run: |
-        if yq '.manifest.projects[] | select(.name == "dragoon")' "$MANIFEST_FILE" | grep -q .; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Change manifest file Dragoon revision
-      if: ${{ startsWith(github.event.pull_request.title, 'Update MPSL and SoftDevice Controller') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' && steps.dragoon_check.outputs.exists == 'true' }}
-      env:
         COMMITS_URL: ${{ github.event.pull_request.commits_url }}
         MANIFEST_FILE: ${{ inputs.manifest-file-path }}
-      shell: bash
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        REPO_NAME: ${{ github.event.repository.name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
-        if [ "${COMMITS_URL}x" != "x" ]; then
-          # API URL details: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-commits-on-a-pull-request
-          LAST_MSG=$(curl -H "Authorization: token ${{ inputs.token }}" "${COMMITS_URL}?per_page=3" | jq -r .[-1].commit.message)
-        fi
-        DRAGOON_REV=$(echo $LAST_MSG | awk 'NR==1 {print $3}' | head)
-        echo "DRAGOON_REV is $DRAGOON_REV"
-        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.name == "dragoon") |  key' "$MANIFEST_FILE")
-        yq ".manifest.projects[$PROJECT_KEY].revision = \"$DRAGOON_REV\"" "$MANIFEST_FILE" > tmp.yml
-        diff -B "$MANIFEST_FILE" tmp.yml | patch "$MANIFEST_FILE" - || true
-
-    - name: Check nrf-802154 project in manifest file
-      id: nrf802154_check
-      if: ${{ startsWith(github.event.pull_request.title, 'Update revision of nrf_802154') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' }}
-      shell: bash
-      env:
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
-      run: |
-        if yq '.manifest.projects[] | select(.name == "nrf-802154")' "$MANIFEST_FILE" | grep -q .; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Change manifest file nrf-802154 revision
-      if: ${{ startsWith(github.event.pull_request.title, 'Update revision of nrf_802154') && github.event.action == 'opened' && steps.check.outputs.SKIP_STRING != 'true' && steps.nrf802154_check.outputs.exists == 'true' }}
-      env:
-        COMMITS_URL: ${{ github.event.pull_request.commits_url }}
-        MANIFEST_FILE: ${{ inputs.manifest-file-path }}
-      shell: bash
-      run: |
-        if [ "${COMMITS_URL}x" != "x" ]; then
-          # API URL details: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-commits-on-a-pull-request
-          LAST_MSG=$(curl -H "Authorization: token ${{ inputs.token }}" "${COMMITS_URL}?per_page=3" | jq -r .[-1].commit.message)
-        fi
-        NRF_802154_REV=$(echo $LAST_MSG | awk 'NR==1 {print $3}' | head)
-        echo "NRF_802154_REV is $NRF_802154_REV"
-        PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.name == "nrf-802154") |  key' "$MANIFEST_FILE")
-        yq ".manifest.projects[$PROJECT_KEY].revision = \"$NRF_802154_REV\"" "$MANIFEST_FILE" > tmp.yml
-        diff -B "$MANIFEST_FILE" tmp.yml | patch "$MANIFEST_FILE" - || true
+        LAST_MSG=""
+        case "$PR_TITLE" in
+          "Update MPSL and SoftDevice Controller"*|"Update revision of nrf_802154"*)
+            if [ -n "$COMMITS_URL" ]; then
+              # API URL details: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-commits-on-a-pull-request
+              LAST_MSG=$(curl -sS -H "Authorization: token $GH_TOKEN" "${COMMITS_URL}?per_page=3" | jq -r .[-1].commit.message)
+            fi
+            ;;
+        esac
+        python "$GITHUB_ACTION_PATH/scripts/update_manifest.py" \
+          --manifest-file "$MANIFEST_FILE" \
+          --repo-name "$REPO_NAME" \
+          --pr-number "$PR_NUMBER" \
+          --pr-title "$PR_TITLE" \
+          --commit-message "$LAST_MSG"
 
     # create actual manifest PR
     - name: Commit changed manifest file and create PR
