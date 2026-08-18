@@ -226,6 +226,15 @@ runs:
         MANIFEST_FILES: ${{ steps.manifest_files.outputs.files }}
       run: |
         git checkout auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
+        git remote add upstream https://github.com/${{ inputs.target-repo }}
+        git fetch upstream
+        # Identify manifest commit
+        MANIFEST_COMMIT=$(git log --format=%H --all-match -F \
+          --grep='manifest: Update ${{ github.event.repository.name }} revision (auto-manifest PR)' \
+          --grep='https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}' \
+          upstream/${{ inputs.base-branch }}..HEAD)
+        # Stop interactive rebase at manifest commit
+        GIT_SEQUENCE_EDITOR="sed -i '0,/^pick /s//edit /'" GIT_EDITOR=true git rebase -i "$MANIFEST_COMMIT^"
         while IFS= read -r MANIFEST_FILE; do
           PROJECT_KEY=$(yq --exit-status '.manifest.projects[] | select(.repo-path == "${{ github.event.repository.name }}") |  key' "$MANIFEST_FILE")
           yq ".manifest.projects[$PROJECT_KEY].revision = \"${{ github.event.pull_request.merge_commit_sha }}\"" "$MANIFEST_FILE" > tmp.yml
@@ -233,8 +242,7 @@ runs:
           git add "$MANIFEST_FILE"
         done <<< "$MANIFEST_FILES"
         git commit --amend --no-edit
-        git remote add upstream https://github.com/${{ inputs.target-repo }}
-        git fetch upstream
+        GIT_EDITOR=true git rebase --continue
         set +e
         git merge-tree --write-tree --name-only upstream/${{ inputs.base-branch }} auto-manifest-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}
         has_conflict="$?"
